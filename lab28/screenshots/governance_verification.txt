@@ -1,0 +1,60 @@
+=== GOVERNANCE VERIFICATION ===
+============================================================
+Layer 5 — Governance Verification
+RBAC + PII + Encryption + Compliance
+============================================================
+
+--- RBAC ---
+  [PASS] Admin can chat
+  [PASS] Admin can admin
+  [PASS] Viewer can chat
+  [PASS] Viewer blocked from admin
+  [PASS] Rate limiting enforced (20 req/min for viewer)
+  [PASS] Key disable/enable works
+  RBAC: ALL CHECKS PASSED
+
+--- PII Detection & Masking ---
+  [PASS] Detected 3 PII items
+  [PASS] Masked text: My email is ***EMAIL*** and phone ***PHONE***. My CCCD is ***CCCD***....
+  [PASS] Record scrubbing works, safe data preserved
+  [PASS] Compliance verification works
+  Report: {
+  "total_pii_masked": 5,
+  "by_type": {
+    "email": 2,
+    "phone_vn": 2,
+    "cccd": 1
+  },
+  "rules_applied": 6,
+  "compliance_status": "PASS"
+}
+  PII Pipeline: ALL CHECKS PASSED
+
+--- Field-Level Encryption ---
+  [PASS] Key generation (32 bytes)
+  [PASS] Encryption: 'sensitive-pii-data-12345' -> 'F+WF6aJiK/JAElbb3gZgNwX9boek+y...'
+  [PASS] Decryption round-trip success
+  [PASS] Record field encryption: sensitive fields encrypted, others preserved
+  [PASS] Hex key format works
+  Encryption: ALL CHECKS PASSED
+
+--- Compliance Automation ---
+  [PASS] Logged 4 audit events
+  [PASS] Query found 1 unauthorized event(s)
+  [PASS] Audit summary: {
+  "total_events": 4,
+  "failures": 1,
+  "success_rate": 75.0,
+  "by_event_type": {
+    "rbac_check": 2,
+    "pii_scrub": 1,
+    "data_access": 1
+  },
+  "last_event_at": 1779077128.1595237
+}
+  [PASS] Data retention policy enforced
+  Compliance: ALL CHECKS PASSED
+
+============================================================
+Governance Layer 5: ALL VERIFIED
+============================================================

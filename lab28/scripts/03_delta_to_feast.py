@@ -2,7 +2,7 @@
 import pandas as pd
 import glob, os, redis, json
 
-r = redis.Redis(host="localhost", port=6379, decode_responses=True)
+r = redis.Redis(host="localhost", port=6380, decode_responses=True)
 
 def load_from_delta_and_push_feast():
     files = glob.glob("delta-lake/raw/*.parquet")

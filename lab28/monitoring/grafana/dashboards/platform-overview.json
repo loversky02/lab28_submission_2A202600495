@@ -1,0 +1,46 @@
+{
+  "title": "AI Platform Overview",
+  "uid": "lab28-platform",
+  "panels": [
+    {
+      "title": "API Request Rate",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job='api-gateway'}[1m])",
+          "legendFormat": "{{method}} {{status}}"
+        }
+      ]
+    },
+    {
+      "title": "P95 Latency (ms)",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job='api-gateway'}[1m])) * 1000",
+          "legendFormat": "P95"
+        }
+      ]
+    },
+    {
+      "title": "Error Rate",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job='api-gateway',status=~'5..'}[1m]) / rate(http_requests_total{job='api-gateway'}[1m])",
+          "legendFormat": "5xx rate"
+        }
+      ]
+    },
+    {
+      "title": "Services Up",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "count(up == 1)",
+          "legendFormat": "Up"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+=== API GATEWAY HEALTH ===
+{
+    "status": "ok",
+    "layers": {
+        "layer1_compute": "FPT Cloud AI (Qwen2.5-7B + Vietnamese Embedding)",
+        "layer2_data": "Kafka:9092 + Qdrant:6333",
+        "layer3_ml": "Prefect:4200 + Feast/Redis:6379",
+        "layer4_ops": "Prometheus:9090 + Grafana:3000",
+        "layer5_governance": "RBAC + PII masking + circuit breaker"
+    }
+}
+
+=== CHAT ENDPOINT TEST ===
+{"answer":"AI platform engineering is the practice of designing, building, and maintaining scalable infrastructure and tools that support the development, deployment, and management of AI models and applications.","latency_ms":662.23,"model":"SaoLa4-small","context_used":false}
+=== ADMIN BLOCKED (403) ===
+HTTP 403

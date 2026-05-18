@@ -1,0 +1,51 @@
+# Lab 28 — Prometheus Configuration
+# Scrapes all 5 layers of the AI platform
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    platform: lab28
+    environment: demo
+
+scrape_configs:
+  # Layer 2+5 — API Gateway
+  - job_name: "api-gateway"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["api-gateway:8000"]
+        labels:
+          layer: "integration"
+          component: "api-gateway"
+
+  # Layer 2 — Kafka (JMX exporter would go here in prod)
+  - job_name: "kafka"
+    static_configs:
+      - targets: ["kafka:9092"]
+        labels:
+          layer: "data"
+          component: "kafka"
+
+  # Layer 3 — Prefect
+  - job_name: "prefect"
+    static_configs:
+      - targets: ["prefect-server:4200"]
+        labels:
+          layer: "ml"
+          component: "prefect"
+
+  # Layer 4 — Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          layer: "ops"
+          component: "prometheus"
+
+  # Layer 2 — Qdrant
+  - job_name: "qdrant"
+    static_configs:
+      - targets: ["qdrant:6333"]
+        labels:
+          layer: "data"
+          component: "qdrant"

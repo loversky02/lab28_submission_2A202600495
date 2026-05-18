@@ -14,7 +14,7 @@
 ### 2. Screenshots Demo
 Chụp màn hình các bước:
 - Prefect UI: http://localhost:4200 (flow đang chạy)
-- API Gateway call: `curl http://localhost:8000/health`
+- API Gateway call: `curl http://localhost:8001/health`
 - Grafana dashboard: http://localhost:3000
 
 ### 3. Kết Quả Smoke Tests

@@ -1,0 +1,47 @@
+name: CI — Smoke Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke-tests:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify imports
+        run: |
+          python -c "from governance.rbac import RBACManager; print('Governance module OK')"
+          python -c "from governance.pii_pipeline import PIIPipeline; print('PII module OK')"
+          python -c "from governance.encryption import encrypt_value, decrypt_value; print('Encryption module OK')"
+
+      - name: Run governance unit tests
+        run: |
+          python scripts/07_governance_check.py
+
+      - name: Generate demo data
+        run: |
+          python scripts/08_generate_demo_data.py
+
+      - name: Check code quality
+        run: |
+          python -m py_compile api-gateway/main.py
+          python -m py_compile governance/*.py
+          python -m py_compile scripts/*.py
+          echo "All Python files compile successfully"

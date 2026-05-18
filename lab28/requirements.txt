@@ -1,0 +1,33 @@
+# Lab 28 — Full Platform Requirements
+# Core
+fastapi==0.104.1
+uvicorn==0.24.0
+httpx==0.25.0
+pydantic==2.5.0
+
+# Observability
+prometheus-fastapi-instrumentator==7.0.0
+prometheus-client==0.19.0
+
+# Data Pipeline
+kafka-python==2.0.2
+pandas==2.1.0
+pyarrow==14.0.0
+
+# Vector & Feature Store
+qdrant-client==1.7.0
+redis==5.0.0
+
+# Prefect
+prefect==2.14.0
+
+# Governance
+cryptography==41.0.7
+presidio-analyzer==2.2.351
+
+# Testing
+pytest==7.4.3
+requests==2.31.0
+
+# Optional (LangSmith / LangChain)
+langsmith==0.0.77

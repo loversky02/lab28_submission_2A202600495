@@ -517,7 +517,7 @@ check_langsmith()
 # smoke-tests/test_e2e.py
 import pytest, requests, time, os
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8001"
 VLLM_URL = os.environ.get("VLLM_NGROK_URL", "")
 
 # ── Test 1: Happy Path — Full Inference Request ───────────────
@@ -638,9 +638,9 @@ def check(name, fn):
 
 print("\n=== RELIABILITY ===")
 check("Health check endpoint", lambda:
-    requests.get("http://localhost:8000/health").raise_for_status())
+    requests.get("http://localhost:8001/health").raise_for_status())
 check("API Gateway responds", lambda:
-    requests.get("http://localhost:8000/docs").raise_for_status())
+    requests.get("http://localhost:8001/docs").raise_for_status())
 
 print("\n=== OBSERVABILITY ===")
 check("Prometheus up", lambda:
@@ -648,11 +648,11 @@ check("Prometheus up", lambda:
 check("Grafana up", lambda:
     requests.get("http://localhost:3000/api/health").raise_for_status())
 check("Metrics endpoint exposed", lambda:
-    requests.get("http://localhost:8000/metrics").raise_for_status())
+    requests.get("http://localhost:8001/metrics").raise_for_status())
 
 print("\n=== SECURITY ===")
 check("Unauthorized request rejected", lambda: (
-    r := requests.get("http://localhost:8000/admin"),
+    r := requests.get("http://localhost:8001/admin"),
     assert r.status_code in [401, 403, 404]
 ))
 
@@ -706,7 +706,7 @@ Mở diagram hybrid architecture, giải thích:
 docker compose logs -f api-gateway
 
 # Terminal 2: Gửi request
-curl -X POST http://localhost:8000/api/v1/chat \
+curl -X POST http://localhost:8001/api/v1/chat \
   -H "Content-Type: application/json" \
   -d '{
     "query": "Explain event-driven architecture for AI platforms",
@@ -723,7 +723,7 @@ Demo flow theo thứ tự:
 
 ```bash
 # Simulate LLM timeout
-curl -X POST http://localhost:8000/api/v1/chat \
+curl -X POST http://localhost:8001/api/v1/chat \
   --max-time 0.1 \
   -d '{"query": "test"}'
 
@@ -746,7 +746,7 @@ Mở Grafana (http://localhost:3000), show live:
 ```bash
 # Chạy load test nhỏ để graph có data
 for i in $(seq 1 20); do
-  curl -s -X POST http://localhost:8000/api/v1/chat \
+  curl -s -X POST http://localhost:8001/api/v1/chat \
     -d '{"query": "load test '$i'", "embedding": [0.1]}' &
 done
 wait
@@ -768,7 +768,7 @@ Chuẩn bị sẵn câu trả lời cho:
 [ ] python scripts/01_ingest_to_kafka.py — OK
 [ ] Prefect flow "kafka-to-delta" deploy thành công
 [ ] python scripts/05_embed_to_qdrant.py — OK
-[ ] curl http://localhost:8000/api/v1/chat — nhận response
+[ ] curl http://localhost:8001/api/v1/chat — nhận response
 [ ] pytest smoke-tests/ -v — 5/5 PASSED
 [ ] python scripts/production_readiness_check.py — score >= 80%
 [ ] Grafana dashboard có metrics

@@ -1,0 +1,212 @@
+# Lab 28 — Full AI Infrastructure Platform
+# 5-layer architecture: Compute (FPT Cloud) → Data → ML → Ops → Governance
+
+services:
+  # ═══════════════════════════════════════════════════════════════
+  # Layer 2 — Data: Kafka Stack
+  # ═══════════════════════════════════════════════════════════════
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: lab28-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "127.0.0.1:2181:2181"
+    networks: [platform]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: lab28-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks: [platform]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════════════
+  # Layer 3 — ML: Prefect Orchestration
+  # ═══════════════════════════════════════════════════════════════
+  prefect-server:
+    image: prefecthq/prefect:2.14.0-python3.10
+    container_name: lab28-prefect-server
+    command: prefect server start --host 0.0.0.0
+    ports:
+      - "127.0.0.1:4200:4200"
+    volumes:
+      - prefect_data:/root/.prefect
+    environment:
+      PREFECT_SERVER_API_HOST: 0.0.0.0
+    networks: [platform]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prefect-worker:
+    image: prefecthq/prefect:2.14.0-python3.10
+    container_name: lab28-prefect-worker
+    command: >
+      bash -c "pip install -q kafka-python pandas pyarrow &&
+               prefect worker start -p docker -n lab28-worker"
+    environment:
+      PREFECT_API_URL: http://prefect-server:4200/api
+    volumes:
+      - ./prefect/flows:/opt/prefect/flows
+      - ./delta-lake:/opt/delta-lake
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - prefect-server
+      - kafka
+    networks: [platform]
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════
+  # Layer 2 — Data: Vector Store (Qdrant)
+  # ═══════════════════════════════════════════════════════════════
+  qdrant:
+    image: qdrant/qdrant:v1.9.0
+    container_name: lab28-qdrant
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks: [platform]
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════
+  # Layer 3 — ML: Feature Store (Feast via Redis)
+  # ═══════════════════════════════════════════════════════════════
+  redis:
+    image: redis:7-alpine
+    container_name: lab28-redis
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_data:/data
+    networks: [platform]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════════════
+  # Layer 4 — Ops: Monitoring Stack
+  # ═══════════════════════════════════════════════════════════════
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: lab28-prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --web.enable-lifecycle
+    networks: [platform]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: lab28-grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks: [platform]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ═══════════════════════════════════════════════════════════════
+  # Layer 2+5 — API Gateway (integrates all layers)
+  # ═══════════════════════════════════════════════════════════════
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: lab28-api-gateway
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      # FPT Cloud AI
+      FPT_API_KEY: ${FPT_API_KEY}
+      FPT_LLM_ENDPOINT: ${FPT_LLM_ENDPOINT:-https://mkp-api.fptcloud.com/chat/completions}
+      FPT_EMBED_ENDPOINT: ${FPT_EMBED_ENDPOINT:-https://mkp-api.fptcloud.com/embeddings}
+      FPT_LLM_MODEL: ${FPT_LLM_MODEL:-SaoLa4-small}
+      # Internal services
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis:6379
+      # Governance
+      GOVERNANCE_ENCRYPTION_KEY: ${GOVERNANCE_ENCRYPTION_KEY}
+      # LangSmith (optional)
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY:-}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT:-lab28-platform}
+    depends_on:
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    networks: [platform]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  prefect_data:
+  qdrant_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  platform:
+    driver: bridge

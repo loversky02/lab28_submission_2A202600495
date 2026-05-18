@@ -1,0 +1,36 @@
+{
+  "title": "Layer 5 — Governance",
+  "uid": "lab28-governance",
+  "panels": [
+    {
+      "title": "RBAC Denials",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{job='api-gateway',status='403'}[1m])",
+          "legendFormat": "403/min"
+        }
+      ]
+    },
+    {
+      "title": "PII Masking Rate",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "rate(pii_masked_total[1m])",
+          "legendFormat": "PII masked/min"
+        }
+      ]
+    },
+    {
+      "title": "Circuit Breaker Status",
+      "type": "table",
+      "targets": [
+        {
+          "expr": "circuit_breaker_open",
+          "legendFormat": "{{service}}"
+        }
+      ]
+    }
+  ]
+}

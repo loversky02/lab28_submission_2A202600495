@@ -1,0 +1,55 @@
+name: CD — Deploy Platform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docker-compose.yml"
+      - "api-gateway/**"
+      - "scripts/**"
+      - "governance/**"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate docker-compose
+        run: docker compose config
+
+      - name: Build API Gateway
+        run: docker compose build api-gateway
+
+      - name: Start platform
+        run: |
+          docker compose up -d --wait
+          docker compose ps
+
+      - name: Run data pipeline
+        run: |
+          python scripts/08_generate_demo_data.py
+          python scripts/01_ingest_to_kafka.py
+          python scripts/02_kafka_to_delta_local.py
+          python scripts/03_delta_to_feast.py
+
+      - name: Run smoke tests
+        env:
+          FPT_API_KEY: ${{ secrets.FPT_API_KEY }}
+        run: |
+          pip install -r requirements.txt
+          pytest smoke-tests/ -v --timeout=60
+
+      - name: Production readiness check
+        env:
+          FPT_API_KEY: ${{ secrets.FPT_API_KEY }}
+        run: python scripts/production_readiness_check.py
+
+      - name: Governance verification
+        run: python scripts/07_governance_check.py
